@@ -7,11 +7,10 @@
 
 Office.onReady((info) => {
   if (info.host === Office.HostType.Word) {
-
-    if (!Office.context.requirements.isSetSupported('WordApi', '1.3')) {
-      console.log('Sorry. The add-in uses Word.js APIs that are not available in your version of Office.');
+    if (!Office.context.requirements.isSetSupported("WordApi", "1.3")) {
+      console.log("Sorry. The add-in uses Word.js APIs that are not available in your version of Office.");
     }
-    
+
     document.getElementById("insert-paragraph").onclick = insertParagraph;
     document.getElementById("check-first-bold").onclick = checkFirstBold;
     document.getElementById("check-second-underline").onclick = checkSecondUnderline;
@@ -25,27 +24,24 @@ Office.onReady((info) => {
 
 export async function run() {
   return Word.run(async (context) => {
-
-
     let documentBody = context.document.body;
 
-    console.log(documentBody)
+    console.log(documentBody);
 
     // Load the text property
     documentBody.load("text");
 
     // Synchronize the state
     await context.sync();
-
   });
 }
 export async function checkFirstBold() {
   Word.run(async (context) => {
     let paragraphs = context.document.body.paragraphs;
     paragraphs.load("items");
-    
+
     await context.sync();
-    
+
     if (paragraphs.items.length > 0) {
       // Get the first paragraph
       let firstParagraph = paragraphs.items[0];
@@ -59,9 +55,9 @@ export async function checkFirstBold() {
       if (words.length > 0) {
         let firstWordRange = firstParagraph.search(words[0], { matchCase: true }).getFirst();
         firstWordRange.load("font/bold");
-      
+
         await context.sync();
-        
+
         console.log(`First word: "${words[0]}"`);
         console.log(`Is bold? ${firstWordRange.font.bold}`);
       }
@@ -77,9 +73,9 @@ export async function checkSecondUnderline() {
   Word.run(async (context) => {
     let paragraphs = context.document.body.paragraphs;
     paragraphs.load("items");
-    
+
     await context.sync();
-    
+
     if (paragraphs.items.length > 0) {
       // Get the first paragraph
       let firstParagraph = paragraphs.items[0];
@@ -90,7 +86,8 @@ export async function checkSecondUnderline() {
 
       // Extract words from the paragraph
       let words = firstParagraph.text.split(/\s+/); // Split by spaces
-      if (words.length > 1) {  // Ensure at least two words exist
+      if (words.length > 1) {
+        // Ensure at least two words exist
         let thirdWordRange = firstParagraph.search(words[1], { matchCase: true }).getFirst();
         thirdWordRange.load("font/underline");
 
@@ -109,36 +106,37 @@ export async function checkSecondUnderline() {
   });
 }
 
-  export async function getThirdSize() {
+export async function getThirdSize() {
   Word.run(async (context) => {
     let paragraphs = context.document.body.paragraphs;
     paragraphs.load("items");
-    
+
     await context.sync();
-    
+
     if (paragraphs.items.length > 0) {
-        // Get the first paragraph
+      // Get the first paragraph
       let firstParagraph = paragraphs.items[0];
 
-        // Load the text of the paragraph
-        firstParagraph.load("text");
+      // Load the text of the paragraph
+      firstParagraph.load("text");
+      await context.sync();
+
+      // Extract words from the paragraph
+      let words = firstParagraph.text.split(/\s+/); // Split by spaces
+      if (words.length > 1) {
+        // Ensure at least two words exist
+        let thirdWordRange = firstParagraph.search(words[2], { matchCase: true }).getFirst();
+        thirdWordRange.load("font/size");
+
         await context.sync();
 
-        // Extract words from the paragraph
-        let words = firstParagraph.text.split(/\s+/); // Split by spaces
-        if (words.length > 1) {  // Ensure at least two words exist
-            let thirdWordRange = firstParagraph.search(words[2], { matchCase: true }).getFirst();
-            thirdWordRange.load("font/size");
-
-            await context.sync();
-
-            console.log(`Third word: "${words[1]}"`);
-            console.log(`Size? "${thirdWordRange.font.size}"`);
-        } else {
-            console.log("There is no third word in the paragraph.");
-        }
+        console.log(`Third word: "${words[1]}"`);
+        console.log(`Size? "${thirdWordRange.font.size}"`);
+      } else {
+        console.log("There is no third word in the paragraph.");
+      }
     } else {
-        console.log("The document is empty.");
+      console.log("The document is empty.");
     }
   }).catch((error) => {
     console.error("Error: " + error);
@@ -147,17 +145,14 @@ export async function checkSecondUnderline() {
 
 export async function insertParagraph() {
   await Word.run(async (context) => {
-
     const docBody = context.document.body;
-    docBody.insertParagraph("In the small, charming town of Willowbrook, life unfolds at a gentle pace.",
-      "Start");
+    docBody.insertParagraph("In the small, charming town of Willowbrook, life unfolds at a gentle pace.", "Start");
 
     await context.sync();
-  })
-    .catch(function (error) {
-      console.log("Error: " + error);
-      if (error instanceof OfficeExtension.Error) {
-        console.log("Debug info: " + JSON.stringify(error.debugInfo));
-      }
-    });
+  }).catch(function (error) {
+    console.log("Error: " + error);
+    if (error instanceof OfficeExtension.Error) {
+      console.log("Debug info: " + JSON.stringify(error.debugInfo));
+    }
+  });
 }
