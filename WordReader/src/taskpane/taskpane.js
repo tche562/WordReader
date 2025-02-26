@@ -16,7 +16,8 @@ Office.onReady((info) => {
     document.getElementById("check-first-bold").onclick = checkFirstBold;
     document.getElementById("check-second-underline").onclick = checkSecondUnderline;
     document.getElementById("get-third-size").onclick = getThirdSize;
-    document.getElementById("run").onclick = run;
+    document.getElementById("load-file").onclick = loadFile;
+    document.getElementById("compare-paragraphs").onclick = compareParagraphs;
 
     document.getElementById("sideload-msg").style.display = "none";
     document.getElementById("app-body").style.display = "flex";
@@ -27,18 +28,44 @@ function getRandomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-export async function run() {
-  return Word.run(async (context) => {
-    let documentBody = context.document.body;
+function arrayBufferToBase64(buffer) {
+  let binary = "";
+  let bytes = new Uint8Array(buffer);
+  let len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
 
-    console.log(documentBody);
+export function loadFile() {
+  let fileInput = document.getElementById("uploadDocx");
+  if (fileInput.files.length === 0) {
+    alert("Please select a .docx file first.");
+    return;
+  }
 
-    // Load the text property
-    documentBody.load("text");
+  let file = fileInput.files[0];
+  let reader = new FileReader();
 
-    // Synchronize the state
-    await context.sync();
-  });
+  reader.onload = async function (event) {
+    let arrayBuffer = event.target.result;
+    let base64 = arrayBufferToBase64(arrayBuffer); // Convert to Base64
+
+    await Word.run(async (context) => {
+      let doc = context.document;
+
+      // Insert the file content
+      doc.body.insertFileFromBase64(base64, Word.InsertLocation.end);
+      
+      await context.sync();
+      console.log("Word file inserted successfully.");
+    }).catch((error) => {
+      console.error("Error inserting Word file:", error);
+    });
+  };
+
+  reader.readAsArrayBuffer(file);
 }
 
 export async function checkFirstBold() {
@@ -192,7 +219,12 @@ async function setOrCancelWordBold(paragraph, n, setOrCancel) {
   nthWordRange.font.bold = setOrCancel; // Apply bold formatting
   await paragraph.context.sync();
 
-  console.log(`Bold applied to the ${n}th word: "${words[n - 1]}"`);
+  if (setOrCancel) {
+    console.log(`Bold applied to the ${n}th word: "${words[n - 1]}"`);
+  } else { 
+    console.log(`Bold was cancelled on the ${n}th word: "${words[n - 1]}"`);
+  }
+  
 }
 
 async function setOrCancelWordUnderline(paragraph, n, setOrCancel) {
@@ -224,12 +256,14 @@ async function setOrCancelWordUnderline(paragraph, n, setOrCancel) {
   if (setOrCancel) {
     nthWordRange.font.underline = "Single"; // Apply underline formatting
     await paragraph.context.sync();
-  } else { 
+    console.log(`Underline applied to the ${n}th word: "${words[n - 1]}"`);
+  } else {
     nthWordRange.font.underline = "None"; // Apply underline formatting
     await paragraph.context.sync();
+    console.log(`Underline was cancelled on the ${n}th word: "${words[n - 1]}"`);
   }
 
-  console.log(`Bold applied to the ${n}th word: "${words[n - 1]}"`);
+  
 }
 
 async function changeWordSize(paragraph, n) {
@@ -261,7 +295,7 @@ async function changeWordSize(paragraph, n) {
   nthWordRange.font.size = 20; // Apply underline formatting
   await paragraph.context.sync();
 
-  console.log(`Bold applied to the ${n}th word: "${words[n - 1]}"`);
+  console.log(`font size changed on the ${n}th word: "${words[n - 1]}"`);
 }
 
 export async function runWordTask() {
@@ -299,4 +333,62 @@ export async function runWordTask() {
   }
 }
 
+async function compareParagraphs() {
+  await Word.run(async (context) => {
+    let paragraphs = context.document.body.paragraphs;
+    paragraphs.load("items");
+    await context.sync();
 
+    if (paragraphs.items.length < 2) {
+      console.log("The document must have at least two paragraphs to compare.");
+      return;
+    }
+
+    let para1 = paragraphs.items[0]; // First paragraph
+    let para2 = paragraphs.items[1]; // Second paragraph
+
+    // 🔹 Extract words from each paragraph
+    let words1 = para1.getTextRanges([" "], true);
+    let words2 = para2.getTextRanges([" "], true);
+    words1.load("items");
+    words2.load("items");
+    await context.sync();
+
+    let minLength = Math.min(words1.items.length, words2.items.length);
+
+    for (let i = 0; i < minLength; i++) {
+      let word1 = words1.items[i];
+      let word2 = words2.items[i];
+
+      // 🔹 Load text and font properties for each word
+      word1.load(["text", "font/bold", "font/underline", "font/size"]);
+      word2.load(["text", "font/bold", "font/underline", "font/size"]);
+    }
+    await context.sync();
+
+
+    let isParagraphSame = true;
+    // 🔍 Compare each word's properties
+    for (let i = 0; i < minLength; i++) {
+      let word1 = words1.items[i];
+      let word2 = words2.items[i];
+
+      let isTextSame = word1.text === word2.text;
+      let isBoldSame = word1.font.bold === word2.font.bold;
+      let isUnderlineSame = word1.font.underline === word2.font.underline;
+      let isFontSizeSame = word1.font.size === word2.font.size;
+      
+
+      if (isTextSame && isBoldSame && isUnderlineSame && isFontSizeSame) {
+        isParagraphSame = isParagraphSame && true;
+      } else {
+        isParagraphSame = isParagraphSame && false;
+        console.log(` Word ${i + 1} is different`);
+      }
+    }
+
+    if (isParagraphSame) {
+      console.log("The paragraphs are the same");
+    }
+  });
+}
